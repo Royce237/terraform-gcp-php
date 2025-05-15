@@ -1,12 +1,6 @@
 Disaster Recovery Strategy
 This document outlines the disaster recovery (DR) strategy for our PHP application deployed on Google Cloud Platform. The strategy is designed to ensure business continuity in case of service disruptions, data loss, or regional outages.
-Disaster Recovery Objectives
-Disaster Recovery Strategy
-This document outlines the disaster recovery (DR) strategy for our PHP application deployed on Google Cloud Platform. The strategy is designed to ensure business continuity in case of service disruptions, data loss, or regional outages.
-Disaster Recovery Objectives
-MetricTargetRecovery Time Objective (RTO)< 1 hourRecovery Point Objective (RPO)< 5 minutesService Level Objective (SLO)99.95% uptime
-Risk Assessment
-RiskImpactLikelihoodMitigationCloud Region OutageHighLowMulti-region deploymentDatabase CorruptionHighLowRegular backups, point-in-time recoveryApplication FailureMediumMediumRedundant services, health checks, rollback capabilityAccidental Data DeletionMediumMediumSoft delete policy, database backupsSecurity BreachHighLowDefense in depth, least privilege access, regular audits
+
 Architecture Overview
 Our DR strategy leverages GCP's global infrastructure to implement a multi-region deployment with data replication:
 Show Image
@@ -188,10 +182,15 @@ resource "google_compute_backend_service" "default" {
 }
 Disaster Recovery Procedures
 1. Database Failover
+
 Automated Failover
+
 Cloud SQL with high availability will automatically promote a standby instance in case of a primary instance failure within the same region.
+
 Cross-Region Failover
+
 For a regional outage, manual intervention is required:
+
 bash#!/bin/bash
 # dr_database_failover.sh
 
@@ -242,9 +241,13 @@ gcloud compute backend-services update backend-service \
 Validation Process
 
 Pre-Test: Document current state, prepare rollback plan
+
 Execute Test: Run the predetermined DR scenario
+
 Validate: Verify application functionality and data integrity
+
 Document: Record metrics (actual RTO/RPO) and identified issues
+
 Review: Update DR plan based on findings
 
 Monitoring and Alerting
@@ -256,7 +259,7 @@ Cross-region latency
 Service health status
 
 Implementation
-hcl# terraform/modules/monitoring/main.tf
+# terraform/modules/monitoring/main.tf
 resource "google_monitoring_alert_policy" "replication_lag" {
   display_name = "Database Replication Lag"
   
@@ -287,12 +290,14 @@ Check Cloud SQL logs and status in GCP Console
 
 
 For Point-in-Time Recovery
-bashgcloud sql instances clone [SOURCE_INSTANCE_NAME] [TARGET_INSTANCE_NAME] \
+
+gcloud sql instances clone [SOURCE_INSTANCE_NAME] [TARGET_INSTANCE_NAME] \
   --point-in-time=[TIMESTAMP] \
   --project=[PROJECT_ID]
 
 For Full Database Restoration
-bashgcloud sql backups restore [BACKUP_ID] \
+
+gcloud sql backups restore [BACKUP_ID] \
   --restore-instance=[INSTANCE_NAME] \
   --project=[PROJECT_ID]
 
@@ -307,14 +312,15 @@ Test application functionality
 Application Recovery Runbook
 
 Deploy Latest Known Good Image
-bashgcloud run deploy [SERVICE_NAME] \
+
+gcloud run deploy [SERVICE_NAME] \
   --image=[IMAGE_URL] \
   --region=[DR_REGION] \
   --platform=managed \
   --allow-unauthenticated
 
 Update DNS and Load Balancer
-bash# Update Cloud DNS
+# Update Cloud DNS
 gcloud dns record-sets transaction start --zone=[ZONE_NAME]
 
 gcloud dns record-sets transaction remove [OLD_IP] \
@@ -346,8 +352,3 @@ Technology Evolution: Adopt new GCP DR features as they become available
 Business Requirements: Adjust RTO/RPO as business needs evolve
 Test Results: Incorporate findings from regular DR testing
 Incident Learnings: Update procedures based on actual incident responses
-
-Appendix: DR Cost Optimization
-ComponentDR ConfigurationCost Optimization StrategyDatabaseCross-region replicaUse smaller instance size for replicasApplicationMulti-region deploymentScale down secondary region instancesStorageMulti-regional bucketsLifecycle policies for older versionsNetworkGlobal load balancerMonitor and optimize cross-region traffic
-
-This DR strategy ensures that our PHP application can quickly recover from various disaster scenarios while minimizing data loss and downtime. By leveraging GCP's global infrastructure and built-in DR capabilities, we can maintain business continuity even during significant service disruptions.
