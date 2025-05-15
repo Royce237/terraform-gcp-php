@@ -23,22 +23,23 @@ Docker installed locally for building the application container image
 
 Project Structure
 .
-├── main.tf             # Main Terraform configuration
-├── variables.tf        # Input variables
-├── outputs.tf          # Output values
-├── terraform.tfvars    # Variable values (create from terraform.tfvars.example)
-├── backend.tf          # Terraform state configuration
-├── modules/            # Reusable Terraform modules
-│   ├── cloudsql/       # Cloud SQL module
-│   ├── storage/        # Cloud Storage module
-│   ├── cloudrun/       # Cloud Run module
-│   └── loadbalancer/   # Load Balancer module
-└── app/                # Application files
-    ├── Dockerfile      # Dockerfile for PHP-FPM and Nginx
-    ├── nginx.conf      # Nginx configuration
-    ├── supervisord.conf # Supervisor configuration for running both services
-    └── public/         # PHP application files
-        └── index.php   # Sample PHP script
+├── main.tf             
+├── variables.tf       
+├── outputs.tf          
+├── terraform.tfvars    
+├── backend.tf          
+├── modules/            
+│   ├── cloudsql/       
+│   ├── storage/        
+│   ├── cloudrun/     
+│   └── loadbalancer/   
+└── app/                
+    ├── Dockerfile      
+    ├── nginx.conf      
+    ├── supervisord.conf 
+    └── public/         
+        └── index.php   
+        
 Setup and Deployment
 1. Authenticate with Google Cloud
 bashgcloud auth login
