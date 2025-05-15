@@ -20,55 +20,56 @@ Terraform v1.0.0+
 Google Cloud SDK
 A Google Cloud Platform account with billing enabled
 Docker installed locally for building the application container image
+   
 
-Project Structure
-.
-├── main.tf             
-├── variables.tf       
-├── outputs.tf          
-├── terraform.tfvars    
-├── backend.tf          
-├── modules/            
-│   ├── cloudsql/       
-│   ├── storage/        
-│   ├── cloudrun/     
-│   └── loadbalancer/   
-└── app/                
-    ├── Dockerfile      
-    ├── nginx.conf      
-    ├── supervisord.conf 
-    └── public/         
-        └── index.php   
-        
 Setup and Deployment
+
 1. Authenticate with Google Cloud
+
 bashgcloud auth login
+
 gcloud auth application-default login
+
 2. Configure Variables
-Copy the example variable file and update with your values:
-bashcp terraform.tfvars.example terraform.tfvars
+
 Edit terraform.tfvars to set your project ID, region, and other configuration values.
+
 3. Build and Push the Container Image
-bash# Build the container image
+
+# Build the container image
+
 docker build -t gcr.io/[PROJECT_ID]/php-app:latest ./app
 
 # Configure Docker to use gcloud for authentication
+
 gcloud auth configure-docker
 
 # Push the image to Google Container Registry
+
 docker push gcr.io/[PROJECT_ID]/php-app:latest
+
 4. Initialize Terraform
-bashterraform init
+
+terraform init
+
 5. Plan and Apply
-bashterraform plan
+terraform plan
+
 terraform apply
+
 State Management
+
 This project is configured to store Terraform state in Google Cloud Storage for team collaboration. The backend.tf file contains the configuration.
+
 To create the GCS bucket for state storage:
-bashgsutil mb -l [REGION] gs://terraform-state-php-app
+
+gsutil mb -l [REGION] gs://terraform-state-php-app
 gsutil versioning set on gs://terraform-state-php-app
+
 Module Documentation
+
 Cloud SQL Module
+
 Creates a MySQL database instance with appropriate settings for your application.
 Key Features:
 
@@ -78,7 +79,9 @@ Backup configuration with optional point-in-time recovery
 Private networking support
 
 Cloud Storage Module
+
 Creates a bucket for storing static assets with appropriate permissions.
+
 Key Features:
 
 CORS configuration for web access
@@ -87,7 +90,9 @@ Optional CDN configuration
 Optional public access or service account access
 
 Cloud Run Module
+
 Deploys a containerized PHP application with Nginx as a sidecar.
+
 Key Features:
 
 Configurable CPU and memory allocation
@@ -96,7 +101,9 @@ Environment variable management
 Cloud SQL connection configuration
 
 Load Balancer Module
+
 Configures a global HTTP/HTTPS load balancer to route traffic to the Cloud Run service.
+
 Key Features:
 
 SSL certificate management
@@ -105,6 +112,7 @@ Global IP address allocation
 HTTP to HTTPS redirection
 
 Maintenance and Updates
+
 Updating the Application
 
 Build a new container image with a new tag
@@ -113,11 +121,13 @@ Update the container_image variable in terraform.tfvars
 Run terraform apply
 
 Scaling the Infrastructure
+
 To scale the application:
 
 Adjust the app_min_instances and app_max_instances variables
 Update the app_cpu and app_memory variables as needed
 Run terraform apply
+
 
 References
 
@@ -127,8 +137,11 @@ https://cloud.google.com/storage/docs
 https://registry.terraform.io/providers/hashicorp/google/latest/docs
 
 
+
 Documentation for GitHub Actions CI/CD Pipeline
-The GitHub Actions workflow I've created handles the complete CI/CD pipeline for your PHP application. Here's a breakdown of how it works:
+
+The GitHub Actions workflow I've created handles the complete CI/CD pipeline for your PHP application. Here's a 
+breakdown of how it works:
 
 Workflow Triggers:
 
@@ -139,6 +152,7 @@ Runs on pull requests targeting main/master branches
 Test Job:
 
 Sets up PHP environment
+
 Installs dependencies using Composer (if composer.json exists)
 Runs PHPUnit tests (if available)
 
@@ -169,6 +183,7 @@ Ensure your service account has appropriate permissions
 Push this file to .github/workflows/deploy.yml in your repository
 
 Documentation for Bash Script
+
 The Bash script get_cloud_run_ip.sh is designed to retrieve the public IP address of your deployed Cloud Run service. Here's how it works:
 
 Command-line Arguments:
