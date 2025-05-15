@@ -1,0 +1,106 @@
+name: Build and Deploy PHP App to Cloud Run
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: php-app
+  REGION: us-central1
+
+jobs:
+  test:
+    name: Test PHP Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mbstring, intl, pdo_mysql
+          coverage: xdebug
+
+      # Add steps to install dependencies and run tests
+      # For example, using Composer and PHPUnit:
+      - name: Install dependencies
+        run: |
+          if [ -f composer.json ]; then
+            composer install --no-interaction --prefer-dist
+          fi
+
+      - name: Run tests
+        run: |
+          if [ -f vendor/bin/phpunit ]; then
+            vendor/bin/phpunit
+          else
+            echo "No tests to run"
+          fi
+
+  build-and-deploy:
+    name: Build and Deploy to Cloud Run
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Authenticate Docker to GCP Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and push Docker image
+        env:
+          IMAGE_NAME: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/containers/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        run: |
+          docker build -t $IMAGE_NAME ./app
+          docker push $IMAGE_NAME
+          echo "IMAGE_URL=$IMAGE_NAME" >> $GITHUB_ENV
+
+      # Option 1: Deploy using gcloud directly
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.IMAGE_URL }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars="DB_HOST=${{ secrets.DB_HOST }},DB_NAME=${{ secrets.DB_NAME }},DB_USER=${{ secrets.DB_USER }},DB_PASSWORD=${{ secrets.DB_PASSWORD }}"
+      
+      # Option 2: Deploy using Terraform (uncomment if preferred)
+      # - name: Setup Terraform
+      #   uses: hashicorp/setup-terraform@v2
+      #   with:
+      #     terraform_version: 1.3.0
+      
+      # - name: Terraform Init
+      #   working-directory: ./terraform
+      #   run: terraform init
+      
+      # - name: Terraform Apply
+      #   working-directory: ./terraform
+      #   env:
+      #     TF_VAR_project_id: ${{ env.PROJECT_ID }}
+      #     TF_VAR_region: ${{ env.REGION }}
+      #     TF_VAR_image_url: ${{ env.IMAGE_URL }}
+      #     TF_VAR_db_name: ${{ secrets.DB_NAME }}
+      #     TF_VAR_db_user: ${{ secrets.DB_USER }}
+      #     TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      #   run: terraform apply -auto-approve
+
+      - name: Output Service URL
+        run: |
+          echo "Service URL: $(gcloud run services describe ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --format='value(status.url)')"
