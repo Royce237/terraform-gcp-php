@@ -1,221 +1,285 @@
-PHP Application Infrastructure on Google Cloud Platform
-This repository contains Terraform configuration for deploying a PHP application on Google Cloud Platform using the following services:
+# PHP Application Deployment on Google Cloud Platform
 
-Cloud SQL (MySQL database)
-Cloud Storage (for static files)
-Cloud Run (for containerized PHP-FPM with Nginx)
-Cloud Load Balancing (HTTP/HTTPS)
+This repository contains infrastructure as code (Terraform), CI/CD pipeline configuration, and deployment scripts for a PHP application running on Google Cloud Platform.
 
-Architecture
-The infrastructure follows a modern serverless architecture:
+## Architecture Overview
 
-Cloud Run hosts the PHP application using containerized PHP-FPM and Nginx
-Cloud SQL provides a managed MySQL database
-Cloud Storage stores static assets (images, CSS, JS, etc.)
-Cloud Load Balancing routes traffic to the Cloud Run service and provides SSL termination
+This project deploys a PHP-FPM application with Nginx on Google Cloud Platform using the following resources:
 
-Prerequisites
+- **Cloud Run**: Hosts the containerized PHP application with Nginx
+- **Cloud SQL**: MySQL database for the application
+- **Cloud Storage**: Bucket for static assets
+- **Cloud Load Balancing**: Routes traffic to the Cloud Run service
 
-Terraform v1.0.0+
-Google Cloud SDK
-A Google Cloud Platform account with billing enabled
-Docker installed locally for building the application container image
-   
+![Architecture Diagram](https://via.placeholder.com/800x400?text=PHP+Application+Architecture)
 
-Setup and Deployment
+## Prerequisites
 
-1. Authenticate with Google Cloud
+Before you begin, ensure you have the following:
 
-bashgcloud auth login
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and configured
+- [Terraform](https://www.terraform.io/downloads.html) (v1.0.0 or later)
+- [Git](https://git-scm.com/downloads)
+- [Docker](https://docs.docker.com/get-docker/) (for local development and testing)
+- A Google Cloud Platform account with billing enabled
+- A Google Cloud project (or create one using Terraform)
 
-gcloud auth application-default login
+## Repository Structure
 
-2. Configure Variables
+```
+.
+|-- README.md
+|-- app
+|   |-- dockerfile               # Docker configuration for PHP-FPM and Nginx
+|   |-- nginx.conf               # Nginx configuration
+|   |-- public
+|   |   `-- index.php            # Sample PHP application
+|   `-- supervisord.conf         # Process management configuration
+`-- terraform
+    |-- backend.tf               # Terraform state configuration
+    |-- main.tf                  # Main Terraform configuration
+    |-- modules                  # Reusable Terraform modules
+    |   |-- cloudrun             # Cloud Run service module
+    |   |-- cloudsql             # Cloud SQL database module
+    |   |-- loadbalancer         # Load balancer module
+    |   `-- storage              # Cloud Storage bucket module
+    |-- outputs.tf               # Terraform outputs
+    |-- terraform.tfvars         # Environment-specific variables
+    `-- variables.tf             # Variable declarations
+```
 
-Edit terraform.tfvars to set your project ID, region, and other configuration values.
+## Setup Instructions
 
-3. Build and Push the Container Image
+### 1. Configure Environment Variables
 
-# Build the container image
+#### For Terraform
 
-docker build -t gcr.io/[PROJECT_ID]/php-app:latest ./app
+Create a `terraform.tfvars` file in the `/terraform` directory with the following variables:
 
-# Configure Docker to use gcloud for authentication
+```hcl
+project_id          = "your-gcp-project-id"
+region              = "us-central1"
+db_name             = "php_app_db"
+db_user             = "app_user"
+db_password         = "your-secure-password"
+storage_bucket_name = "your-app-static-assets"
+```
 
-gcloud auth configure-docker
+#### For Local Development
 
-# Push the image to Google Container Registry
+Create a `.env` file in the root directory:
 
-docker push gcr.io/[PROJECT_ID]/php-app:latest
+```
+DB_HOST=localhost
+DB_NAME=php_app_db
+DB_USER=app_user
+DB_PASSWORD=your-secure-password
+```
 
-4. Initialize Terraform
+### 2. Initialize and Apply Terraform Configuration
 
+```bash
+# Navigate to the terraform directory
+cd terraform
+
+# Initialize Terraform
 terraform init
 
-5. Plan and Apply
+# Preview the changes
 terraform plan
 
+# Apply the configuration
 terraform apply
+```
 
-State Management
+### 3. Deploy the Application
 
-This project is configured to store Terraform state in Google Cloud Storage for team collaboration. The backend.tf file contains the configuration.
+You can deploy the application either manually or through the GitHub Actions CI/CD pipeline.
 
-To create the GCS bucket for state storage:
+#### Manual Deployment
 
-gsutil mb -l [REGION] gs://terraform-state-php-app
-gsutil versioning set on gs://terraform-state-php-app
+```bash
+# Build the Docker image
+docker build -t gcr.io/your-project-id/php-app:latest ./app
 
-Module Documentation
+# Push to Google Container Registry
+docker push gcr.io/your-project-id/php-app:latest
 
-Cloud SQL Module
+# Deploy to Cloud Run
+gcloud run deploy php-app \
+  --image gcr.io/your-project-id/php-app:latest \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
 
-Creates a MySQL database instance with appropriate settings for your application.
-Key Features:
+#### CI/CD Pipeline (GitHub Actions)
 
-Configurable instance type and MySQL version
-Optional high availability configuration
-Backup configuration with optional point-in-time recovery
-Private networking support
+The GitHub Actions workflow will automatically deploy your application when you push to the main branch.
 
-Cloud Storage Module
+To set up the CI/CD pipeline:
 
-Creates a bucket for storing static assets with appropriate permissions.
+1. Add the following secrets to your GitHub repository:
+   - `GCP_PROJECT_ID`: Your Google Cloud project ID
+   - `GCP_SA_KEY`: Service account key JSON (base64 encoded)
+   - `DB_HOST`: Cloud SQL instance connection name
+   - `DB_NAME`: Database name
+   - `DB_USER`: Database username
+   - `DB_PASSWORD`: Database password
 
-Key Features:
+2. Push your code to the main branch:
+   ```bash
+   git add .
+   git commit -m "Update application code"
+   git push origin main
+   ```
 
-CORS configuration for web access
-Lifecycle policies for object management
-Optional CDN configuration
-Optional public access or service account access
+### 4. Access the Deployed Application
 
-Cloud Run Module
+After deployment, you can access the application using the Cloud Run service URL:
 
-Deploys a containerized PHP application with Nginx as a sidecar.
+```bash
+gcloud run services describe php-app --region us-central1 --format='value(status.url)'
+```
 
-Key Features:
+Or by using the load balancer IP address that's configured.
 
-Configurable CPU and memory allocation
-Min/max instance configuration for autoscaling
-Environment variable management
-Cloud SQL connection configuration
+### 5. Retrieve the Public IP Address
 
-Load Balancer Module
+Use the provided Bash script to retrieve the public IP address of your Cloud Run service:
 
-Configures a global HTTP/HTTPS load balancer to route traffic to the Cloud Run service.
+```bash
+# Make the script executable
+chmod +x get_cloud_run_ip.sh
 
-Key Features:
+# Run for development environment (default)
+./get_cloud_run_ip.sh
 
-SSL certificate management
-Optional CDN configuration
-Global IP address allocation
-HTTP to HTTPS redirection
+# Or specify an environment
+./get_cloud_run_ip.sh production
+```
 
-Maintenance and Updates
+The script will output the IP address and save it to a file in the current directory.
 
-Updating the Application
+## Troubleshooting
 
-Build a new container image with a new tag
-Push the image to Google Container Registry
-Update the container_image variable in terraform.tfvars
-Run terraform apply
+### Common Issues and Solutions
 
-Scaling the Infrastructure
+#### Terraform State Locking
 
-To scale the application:
+If you encounter state locking issues:
 
-Adjust the app_min_instances and app_max_instances variables
-Update the app_cpu and app_memory variables as needed
-Run terraform apply
+```bash
+terraform force-unlock LOCK_ID
+```
 
+#### Cloud Run Deployment Failures
 
-References
+Check the deployment logs:
 
-https://cloud.google.com/run/docs
-https://cloud.google.com/sql/docs
-https://cloud.google.com/storage/docs
-https://registry.terraform.io/providers/hashicorp/google/latest/docs
+```bash
+gcloud run services logs read php-app --region us-central1
+```
 
+#### Database Connection Issues
 
+Verify that the Cloud SQL instance is properly configured and the connection string is correct:
 
-Documentation for GitHub Actions CI/CD Pipeline
+```bash
+# Check Cloud SQL instance status
+gcloud sql instances describe your-sql-instance
 
-The GitHub Actions workflow I've created handles the complete CI/CD pipeline for your PHP application. Here's a 
-breakdown of how it works:
+# Verify network connectivity
+gcloud sql instances patch your-sql-instance --authorized-networks=YOUR_IP_ADDRESS/32
+```
 
-Workflow Triggers:
+#### GitHub Authentication Issues
 
-Runs on pushes to main/master branches
-Runs on pull requests targeting main/master branches
+If you encounter permission issues when pushing to GitHub:
 
+1. Verify your Git configuration:
+   ```bash
+   git config user.name
+   git config user.email
+   ```
 
-Test Job:
+2. Update your Git credentials or use SSH:
+   ```bash
+   # Using SSH
+   git remote set-url origin git@github.com:Royce237/terraform-gcp-php.git
+   ```
 
-Sets up PHP environment
+#### Docker Build Errors
 
-Installs dependencies using Composer (if composer.json exists)
-Runs PHPUnit tests (if available)
+If Docker build fails:
 
+```bash
+# Check Docker daemon status
+docker info
 
-Build and Deploy Job:
+# Build with verbose output
+docker build --no-cache -t gcr.io/your-project-id/php-app:latest ./app
+```
 
-Runs after tests pass
-Sets up Google Cloud SDK
-Authenticates with Google Cloud
-Builds Docker image from your Dockerfile
-Pushes image to Google Artifact Registry
-Deploys to Cloud Run with environment variables
-Outputs the service URL
+## Challenges Encountered and Solutions
 
+### 1. Cloud SQL Connection from Cloud Run
 
-Environment Variables and Secrets:
+**Challenge**: Establishing a secure connection between Cloud Run and Cloud SQL required additional configuration.
 
-GCP_PROJECT_ID: Your Google Cloud project ID
-GCP_SA_KEY: Service account key for authentication
-Database credentials: DB_HOST, DB_NAME, DB_USER, DB_PASSWORD
+**Solution**: Used the Cloud SQL Auth Proxy and implemented proper IAM permissions for the Cloud Run service account to access the Cloud SQL instance.
 
+### 2. GitHub Authentication with Multiple Accounts
 
+**Challenge**: Encountered permission issues when pushing to GitHub with different accounts configured.
 
-To use this workflow, you'll need to:
+**Solution**: Used SSH keys with specific configurations to manage multiple GitHub accounts properly.
 
-Create these secrets in your GitHub repository settings
-Ensure your service account has appropriate permissions
-Push this file to .github/workflows/deploy.yml in your repository
+### 3. Environment Variable Management
 
-Documentation for Bash Script
+**Challenge**: Securely managing environment variables across different environments.
 
-The Bash script get_cloud_run_ip.sh is designed to retrieve the public IP address of your deployed Cloud Run service. Here's how it works:
+**Solution**: Used GitHub Secrets for CI/CD, Terraform variables for infrastructure, and implemented Secret Manager for sensitive data in production.
 
-Command-line Arguments:
+## Production Readiness Enhancements
 
-Takes an optional environment parameter (development, staging, production)
-Adapts service name based on the environment
+For a production-ready environment, consider implementing the following additional features:
 
+### 1. Monitoring and Logging
 
-Error Handling:
+- Set up Cloud Monitoring alerts for service performance and errors
+- Implement structured logging with Cloud Logging
+- Create custom dashboards for key metrics
 
-Checks if gcloud CLI is installed
-Verifies the user is authenticated
-Uses proper error trapping and logging
+### 2. Security Enhancements
 
+- Implement Web Application Firewall (WAF) with Cloud Armor
+- Configure VPC Service Controls
+- Set up regular security scanning and vulnerability assessment
+- Implement proper IAM roles with least privilege principles
 
-Core Functionality:
+### 3. Backup and Disaster Recovery
 
-Retrieves the Cloud Run service URL using gcloud CLI
-Resolves the URL to an IP address using dig
-Saves the IP address to a file
+- Set up automated database backups
+- Implement a disaster recovery plan with multi-region failover
+- Perform regular restore testing
 
+### 4. Performance Optimization
 
-Logging:
+- Configure Cloud CDN for static assets
+- Implement caching strategies
+- Set up auto-scaling policies based on load
 
-Creates a timestamped log file for each run
-Uses colored output for different log levels
-Provides clear error messages
+### 5. CI/CD Improvements
 
+- Add integration and end-to-end testing
+- Implement blue-green or canary deployments
+- Set up approval workflows for production deployments
 
+## License
 
-To use this script:
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Make it executable: chmod +x get_cloud_run_ip.sh
-Run it: ./get_cloud_run_ip.sh [environment]
-Find the IP address in both the output and the saved file
+## Contributors
+
+- Royce - Initial implementation and documentation
