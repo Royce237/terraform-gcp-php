@@ -1,6 +1,9 @@
 Disaster Recovery Strategy
 This document outlines the disaster recovery (DR) strategy for our PHP application deployed on Google Cloud Platform. The strategy is designed to ensure business continuity in case of service disruptions, data loss, or regional outages.
 Disaster Recovery Objectives
+Disaster Recovery Strategy
+This document outlines the disaster recovery (DR) strategy for our PHP application deployed on Google Cloud Platform. The strategy is designed to ensure business continuity in case of service disruptions, data loss, or regional outages.
+Disaster Recovery Objectives
 MetricTargetRecovery Time Objective (RTO)< 1 hourRecovery Point Objective (RPO)< 5 minutesService Level Objective (SLO)99.95% uptime
 Risk Assessment
 RiskImpactLikelihoodMitigationCloud Region OutageHighLowMulti-region deploymentDatabase CorruptionHighLowRegular backups, point-in-time recoveryApplication FailureMediumMediumRedundant services, health checks, rollback capabilityAccidental Data DeletionMediumMediumSoft delete policy, database backupsSecurity BreachHighLowDefense in depth, least privilege access, regular audits
@@ -235,9 +238,7 @@ gcloud compute backend-services update backend-service \
   --enable-backend \
   --backend-service-backend=group=${SECONDARY_NEG_NAME} \
   --project=${PROJECT_ID}
-Testing and Validation
-Regular DR Testing Schedule
-Test TypeFrequencyDescriptionDatabase RestorationMonthlyRestore from backup to validate data integrityFailover SimulationQuarterlyTest automatic and manual failover proceduresFull DR ExerciseAnnuallyComplete simulation of primary region outage
+
 Validation Process
 
 Pre-Test: Document current state, prepare rollback plan
